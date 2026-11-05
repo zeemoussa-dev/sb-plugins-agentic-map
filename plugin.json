@@ -1,0 +1,9 @@
+{
+  "id": "agentic-map",
+  "name": "Agents Map",
+  "description": "Every agent drawn by Section and kind around the knowledge base, with each agent's panel to chat, read its history and see its schedule. Adds a card to Home.",
+  "version": "1.0.0",
+  "framework_api": "13.6.0",
+  "category": "Agents",
+  "requires": []
+}
