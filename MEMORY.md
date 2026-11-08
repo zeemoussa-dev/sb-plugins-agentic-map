@@ -18,3 +18,17 @@ there.
 - **[2026-11-05] Selection lives in the URL.** `?agent=<id>` opens an agent's panel
   and `?section=<id>` a Section's, through `useUrlSelection`; the Home card links
   to `/agentic-map?section=<id>`. Keep both working when changing the page.
+
+- **[2026-11-08] Audience is the framework's job; Primaries are ours.** `GET /agents`
+  already leaves out what a caller's audience does not admit, so the map never filters
+  by audience. It does keep other people's own Primaries (`primary-<user id>`) off a
+  non-Admin's map, which is display only: the framework does not restrict them.
+  The rules are in `ui/people.ts` and tested in Node from `tests/test_plugin.py`.
+
+- **[2026-11-08] Hubs whose id starts with `__` are not Sections.** `__unplaced` and
+  `__primaries` have no Section panel and are not counted as Sections
+  (`isSyntheticSection`).
+
+- **[2026-11-08] Audience and vault grants are read only by someone with
+  `manage_agents`.** Those routes are under `/admin`. A vault the viewer is not a
+  member of is counted, never named.
