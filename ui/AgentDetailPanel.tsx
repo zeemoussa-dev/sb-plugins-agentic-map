@@ -14,6 +14,20 @@ import { fetchHermesSessions, type HermesSession } from '../../pluginHost/framew
 import { AgentJobsTab } from '../../pluginHost/framework';
 import { useAuth } from '../../pluginHost/framework';
 import { refusalText } from '../../pluginHost/framework';
+import {
+  audienceLabel,
+  fetchAgentAudience,
+  fetchAgentVaultGrants,
+  fetchMyVaults,
+  grantsSeenBy,
+  grantsText,
+  isPersonPrimary,
+  mayChat,
+  ownPrimaryId,
+  type AgentAudience,
+  type GrantsSeen,
+  type MyPrimary,
+} from './people';
 
 interface AgentDetailPanelProps {
   agentId: string;
@@ -23,6 +37,16 @@ interface AgentDetailPanelProps {
   // (what the map canvas renders from) is told through this. Optional so
   // this panel still works standalone/in tests with no parent to notify.
   onAgentUpdated?: () => void;
+  /** The agent the viewer's own messages go to (`/me/primary`), when the host says. */
+  myPrimary?: MyPrimary | null;
+}
+
+/** What this agent is to the viewer, if anything (ADR-156). */
+function primaryNote(agentId: string, userId: string, myPrimary: MyPrimary | null | undefined): string | null {
+  if (agentId === ownPrimaryId(userId)) return 'Your own Primary. Your messages go to it, and you edit its instructions.';
+  if (myPrimary?.agent_id === agentId) return 'Your messages go to this agent: an Admin assigned it to you.';
+  if (isPersonPrimary(agentId)) return 'Another person\'s own Primary. You see it because you are an Admin.';
+  return null;
 }
 
 // A quick look and a chat. Every setting is on the agent's own page (`ADR-123`).
@@ -70,9 +94,15 @@ function formatSessionDuration(startedAt: number | null, endedAt: number | null)
   return `${minutes}m ${remainingSeconds}s`;
 }
 
-export function AgentDetailPanel({ agentId, onClose, onAgentUpdated }: AgentDetailPanelProps) {
-  const { may } = useAuth();
+export function AgentDetailPanel({ agentId, onClose, onAgentUpdated, myPrimary }: AgentDetailPanelProps) {
+  const { may, user } = useAuth();
+  const viewer = { userId: user.id, isAdmin: user.role === 'admin' };
+  const managesAgents = may('manage_agents');
   const [agent, setAgent] = useState<AgentDetail | null>(null);
+  // Who may talk to it, and which vaults it holds, read only by someone who manages agents:
+  // both routes are theirs. Everyone else is shown only agents the framework already let them see.
+  const [audience, setAudience] = useState<AgentAudience | null>(null);
+  const [grants, setGrants] = useState<GrantsSeen | null>(null);
   const [activeTab, setActiveTab] = useState<Tab>('overview');
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -89,6 +119,26 @@ export function AgentDetailPanel({ agentId, onClose, onAgentUpdated }: AgentDeta
     setHermesSessions(null); // clear the previous agent's session log on switch
     fetchAgent(agentId).then(setAgent);
   }, [agentId]);
+
+  useEffect(() => {
+    setAudience(null);
+    setGrants(null);
+    // A Pipeline is not an agent with an audience or grants of its own.
+    if (!managesAgents || agentId.startsWith('pipeline:')) return;
+    let cancelled = false;
+    fetchAgentAudience(agentId).then((read) => {
+      if (!cancelled) setAudience(read);
+    });
+    Promise.all([fetchAgentVaultGrants(agentId), fetchMyVaults()]).then(([agentGrants, myVaults]) => {
+      if (!cancelled && agentGrants !== null) setGrants(grantsSeenBy(agentGrants, myVaults));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [agentId, managesAgents]);
+
+  const chatOpen = mayChat(audience, viewer);
+  const forYou = primaryNote(agentId, user.id, myPrimary);
 
   useEffect(() => {
     // History tab, not Overview (operator, 2026-08-23).
@@ -144,7 +194,10 @@ export function AgentDetailPanel({ agentId, onClose, onAgentUpdated }: AgentDeta
         {agent && (
           <>
             <div className="side-panel-title">
-              <h2>{agent.name} <StatusBadge tone="accent">{agent.type}</StatusBadge></h2>
+              <h2>
+                {agent.name} <StatusBadge tone="accent">{agent.type}</StatusBadge>
+                {agentId === ownPrimaryId(user.id) && <> <StatusBadge tone="success">Your Primary</StatusBadge></>}
+              </h2>
             </div>
             <div className="side-panel-tabbar">
               <Tabs
@@ -167,6 +220,7 @@ export function AgentDetailPanel({ agentId, onClose, onAgentUpdated }: AgentDeta
               {activeTab === 'overview' && (
                 <div className="side-panel-section" data-testid="agent-overview-tab">
                   <h3>Overview</h3>
+                  {forYou && <Notice tone="info" testId="overview-for-you">{forYou}</Notice>}
                   <div className="kv-list">
                     {agent.description && (
                       <div className="kv-row" data-testid="overview-description">
@@ -190,6 +244,18 @@ export function AgentDetailPanel({ agentId, onClose, onAgentUpdated }: AgentDeta
                       <span className="kv-key">Vault scope</span>
                       <span>{agent.scope.length > 0 ? agent.scope.join(', ') : 'No vault scope assigned yet'}</span>
                     </div>
+                    {audience && (
+                      <div className="kv-row" data-testid="overview-audience">
+                        <span className="kv-key">Open to</span>
+                        <span>{audienceLabel(audience)}</span>
+                      </div>
+                    )}
+                    {grants && (
+                      <div className="kv-row" data-testid="overview-vault-grants">
+                        <span className="kv-key">Vaults</span>
+                        <span>{grantsText(grants)}</span>
+                      </div>
+                    )}
                     <div className="kv-row" data-testid="overview-tools">
                       <span className="kv-key">Tools</span>
                       <span>{agent.tools.length > 0 ? agent.tools.join(', ') : 'No tools enabled'}</span>
@@ -208,14 +274,16 @@ export function AgentDetailPanel({ agentId, onClose, onAgentUpdated }: AgentDeta
                     </div>
                   </div>
                   <div className="side-panel-section-actions">
-                    <button
-                      type="button"
-                      className="btn btn-primary"
-                      onClick={() => setActiveTab('chat')}
-                      data-testid="overview-chat-link"
-                    >
-                      <Icon name="chat" />Chat with {agent.name}
-                    </button>
+                    {chatOpen && (
+                      <button
+                        type="button"
+                        className="btn btn-primary"
+                        onClick={() => setActiveTab('chat')}
+                        data-testid="overview-chat-link"
+                      >
+                        <Icon name="chat" />Chat with {agent.name}
+                      </button>
+                    )}
                     {/* Fetches nothing here: that view is one expensive composed read
                         (BUG-086), paid only when the operator navigates to it.
                         A Pipeline has no definition of this kind to read. */}
@@ -262,10 +330,19 @@ export function AgentDetailPanel({ agentId, onClose, onAgentUpdated }: AgentDeta
 
               {activeTab === 'chat' && (
                 <div className="side-panel-section side-panel-section--chat">
-                  <AgentChatPanel
-                    agentId={agentId}
-                    agentName={agent.name}
-                  />
+                  {/* The framework's chat panel carries the activity list and Show reasoning
+                      (`ActivityTrace`, `ShowReasoningSwitch`, ADR-171) itself. */}
+                  {chatOpen ? (
+                    <AgentChatPanel
+                      agentId={agentId}
+                      agentName={agent.name}
+                    />
+                  ) : (
+                    <Notice tone="info" testId="agent-chat-closed">
+                      Only the people named on {agent.name} can chat with it, and you are not one of them. You see
+                      it because you are an Admin.
+                    </Notice>
+                  )}
                 </div>
               )}
 

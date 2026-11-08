@@ -332,16 +332,26 @@ export interface AgentMapLayout {
  * own section_id (no longer derived from `type`); N sections' hub angles
  * are spaced evenly around the full circle, replacing the fixed 3-entry
  * SECTION_META/TYPE_TO_SECTION lookup (ADR-014 point 6). */
-export function layoutAgents(agents: AgentSummary[], sectionList: SectionSummary[]): AgentMapLayout {
+export function layoutAgents(
+  agents: AgentSummary[],
+  sectionList: SectionSummary[],
+  // Hubs that are not Sections (the Primaries hub, `people.ts`), drawn last and only when an
+  // agent is on one.
+  trailingSections: SectionSummary[] = [],
+): AgentMapLayout {
   const sortedSections = [...sectionList].sort((a, b) => a.id.localeCompare(b.id));
   // An agent with no Section still has to appear: a fresh install's only agent
   // is its Primary, and an empty map would say nothing is connected. They get a
   // hub of their own, drawn only when one exists, so `sections` stays the
   // truth about the install everywhere else.
   const hasUnplacedAgent = agents.some((agent) => agent.section_id === null && !isBackgroundAgent(agent));
-  const allSections: SectionSummary[] = hasUnplacedAgent
-    ? [...sortedSections, UNPLACED_SECTION]
-    : sortedSections;
+  const usedTrailing = trailingSections.filter((section) =>
+    agents.some((agent) => agent.section_id === section.id && !isBackgroundAgent(agent)));
+  const allSections: SectionSummary[] = [
+    ...sortedSections,
+    ...(hasUnplacedAgent ? [UNPLACED_SECTION] : []),
+    ...usedTrailing,
+  ];
   const n = allSections.length;
 
   const sections: AgentSection[] = allSections.map((section, index) => ({

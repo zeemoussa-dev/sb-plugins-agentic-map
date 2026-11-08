@@ -15,7 +15,17 @@ import { PageLoading } from '../../pluginHost/framework';
 import { EmptyState } from '../../pluginHost/framework';
 import { Icon } from '../../pluginHost/framework';
 import { fetchSections } from '../../pluginHost/framework';
-import { layoutAgents, UNPLACED_SECTION_ID, type ClusterMarker, type DependencyEdge } from './layoutAgents';
+import { useAuth } from '../../pluginHost/framework';
+import { layoutAgents, type ClusterMarker, type DependencyEdge } from './layoutAgents';
+import {
+  agentsForViewer,
+  fetchMyPrimary,
+  isSyntheticSection,
+  placePersonPrimaries,
+  primariesSection,
+  type MyPrimary,
+  type Viewer,
+} from './people';
 import {
   spliceAllPipelineJobTrees,
   fetchAllPipelineJobTrees,
@@ -25,6 +35,11 @@ import {
 import type { AgentSection, MockAgent } from './mockAgents';
 
 export function AgentsMapPage() {
+  const { user } = useAuth();
+  // The framework's own rule for seeing every agent is the Admin role (`may_see_definition`).
+  const viewerId = user.id;
+  const viewerIsAdmin = user.role === 'admin';
+  const [myPrimary, setMyPrimary] = useState<MyPrimary | null>(null);
   const [sections, setSections] = useState<AgentSection[]>([]);
   const [agents, setAgents] = useState<MockAgent[]>([]);
   // Every fetched agent, unreduced (REQ-SB-38-US-01) — `agents` above is
@@ -115,8 +130,12 @@ export function AgentsMapPage() {
       .then(([agentList, sectionList, pipelineJobTrees, refs]) => {
         if (cancelled) return;
         // A plugin's own agents are listed on Admin › Background Agents, not drawn here (`ADR-111`).
-        const adaptedAgentList = spliceAllPipelineJobTrees(agentList.filter((agent) => !agent.plugin), pipelineJobTrees);
-        const layout = layoutAgents(adaptedAgentList, sectionList);
+        // Other people's own Primaries are theirs (ADR-156): only an Admin sees them, and every
+        // person's Primary sits on the Primaries hub rather than among the unplaced agents.
+        const viewer: Viewer = { userId: viewerId, isAdmin: viewerIsAdmin };
+        const ownAgents = placePersonPrimaries(agentsForViewer(agentList.filter((agent) => !agent.plugin), viewer));
+        const adaptedAgentList = spliceAllPipelineJobTrees(ownAgents, pipelineJobTrees);
+        const layout = layoutAgents(adaptedAgentList, sectionList, [primariesSection(viewer)]);
         setSections(layout.sections);
         setAgents(layout.mapAgents);
         setClusters(layout.clusters);
@@ -164,9 +183,19 @@ export function AgentsMapPage() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [viewerId, viewerIsAdmin]);
 
   useEffect(() => refreshAgents(), [refreshAgents]);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchMyPrimary().then((primary) => {
+      if (!cancelled) setMyPrimary(primary);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [viewerId]);
 
   function handleAgentCreated(_agent: AgentDetail) {
     setIsWizardOpen(false);
@@ -192,7 +221,7 @@ export function AgentsMapPage() {
   }
 
   const hasAgents = agents.length > 0;
-  const realSectionCount = sections.filter((section) => section.id !== UNPLACED_SECTION_ID).length;
+  const realSectionCount = sections.filter((section) => !isSyntheticSection(section.id)).length;
 
   // ADR-044 Decision 3 -- resolves a clicked id against the already-fetched
   // Job list (no new fetch); `null` means selectedAgentId is a real Agent
@@ -280,9 +309,10 @@ export function AgentsMapPage() {
           agentId={selectedAgentId}
           onClose={() => setSelectedAgentId(null)}
           onAgentUpdated={refreshAgents}
+          myPrimary={myPrimary}
         />
       )}
-      {selectedSectionId && selectedSectionId !== UNPLACED_SECTION_ID && (
+      {selectedSectionId && !isSyntheticSection(selectedSectionId) && (
         <SectionDetailPanel
           sectionId={selectedSectionId}
           onClose={() => setSelectedSectionId(null)}
