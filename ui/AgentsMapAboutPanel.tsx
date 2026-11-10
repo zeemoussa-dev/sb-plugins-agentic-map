@@ -3,6 +3,9 @@ import { Link } from 'react-router';
 import { Dialog } from '../../pluginHost/framework';
 import { IconButton } from '../../pluginHost/framework';
 
+// The map's own canvas has no `PageHeader`, so no ⓘ: this dialog links to the Guide instead (14.8).
+const GUIDE = '/help/wiki/agentic-map.agents-map';
+
 interface AgentsMapAboutPanelProps {
   sectionCount: number;
   agentCount: number;
@@ -28,7 +31,7 @@ export function AgentsMapAboutPanel({ sectionCount, agentCount }: AgentsMapAbout
       {isOpen && (
         <Dialog
           title="How to read this map" onClose={() => setIsOpen(false)}
-          footer={<Link className="btn btn-ghost" to="/help?topic=agents-map" onClick={() => setIsOpen(false)}>More in Help</Link>}
+          footer={<Link className="btn btn-ghost" to={GUIDE} onClick={() => setIsOpen(false)}>Read the Guide</Link>}
         >
           <div className="map-about-panel">
             <p className="map-about-tag">
@@ -53,9 +56,9 @@ export function AgentsMapAboutPanel({ sectionCount, agentCount }: AgentsMapAbout
 
             <div className="map-about-sec">READING A NODE</div>
             <p>
-              Click any agent to open its detail panel — settings, capabilities, and its assigned
-              Skills. A dashed marker means more agents than fit on screen at once; click it to see the
-              rest.
+              Click any agent to open its panel: overview, chat, history, settings and schedule.
+              Your own Primary, if you have one, sits on a hub of its own. You see only the agents
+              open to you.
             </p>
           </div>
         </Dialog>

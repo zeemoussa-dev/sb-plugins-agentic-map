@@ -19,8 +19,8 @@ const ui: PluginUi = {
     id: 'agents-map',
     title: 'Agents Map',
     summary: 'Every agent, drawn by Section and kind around the knowledge base.',
-    body: 'Each Section has a hub; its agents sit on rings by kind: **Workers** outside (they run jobs), **Experts** in the middle (they answer questions) and **Producers** inside (they keep a document up to date). Click a hub to focus its Section, and an agent to open its panel. **Ctrl+K** finds an agent. New agents and Pipelines are also made on **Admin Center › Agents**.',
-    keywords: ['map', 'agents', 'sections', 'worker', 'expert', 'producer', 'hub'],
+    body: 'Each Section has a hub; its agents sit on rings by kind: **Workers** outside (they run jobs), **Experts** in the middle (they answer questions) and **Producers** inside (they keep a document up to date). Click a hub to focus its Section, and click it again for the Section\'s panel. Click an agent to open its panel: overview, chat, history, settings and schedule. **Ctrl+K** finds an agent, and **+** creates an agent, a Pipeline or a Section.\n\nYou see only the agents open to you. Your own Primary sits on a hub of its own. The Guide, **Agents Map** in the Wiki\'s Plugins group, has the rest.',
+    keywords: ['map', 'agents', 'sections', 'worker', 'expert', 'producer', 'hub', 'primary', 'audience', 'pipeline'],
     href: '/agentic-map',
   }],
 };
