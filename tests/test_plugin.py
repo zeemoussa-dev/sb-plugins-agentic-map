@@ -32,6 +32,33 @@ def test_framework_api_is_not_newer_than_the_host():
     assert ours <= host
 
 
+def _framework_guide_rule():
+    """The framework's own Help and Guide rule (14.8), loaded by file path as its checker does."""
+    import importlib.util
+
+    plugin_api = pytest.importorskip("app.plugin_api")
+    path = Path(plugin_api.__file__).parent / "business" / "core" / "plugins" / "plugin_guide.py"
+    if not path.is_file():
+        pytest.skip("this framework has no plugin_guide.py")
+    spec = importlib.util.spec_from_file_location("plugin_guide", path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def test_guide_and_help_pass_the_framework_rule():
+    rule = _framework_guide_rule()
+    assert rule.guide_problems(REPO, MANIFEST["id"]) == []
+    assert rule.help_problems(REPO) == []
+
+
+def test_guide_links_name_its_own_pages():
+    pages = {path.stem for path in (REPO / "wiki").glob("*.md")}
+    for path in (REPO / "wiki").glob("*.md"):
+        for target in re.findall(r"\(wiki:([^)\s]+)\)", path.read_text(encoding="utf-8")):
+            assert target in pages, f"{path.name} links to wiki:{target}, which is not a page"
+
+
 _PEOPLE_CHECKS = r"""
 import assert from 'node:assert/strict';
 import * as people from './plugin/ui/people.ts';
