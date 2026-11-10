@@ -24,5 +24,16 @@ On an install with several people, each person's map is their own:
 The chat is the framework's own panel, with its activity list and **Show
 reasoning** switch. The plugin has no settings.
 
-Install it from **Admin Center › Marketplace** on a Second Brain OS host with
-Plugin API 14 (`framework_api` 14.0.0 or later in 14.x).
+## The Guide
+
+The plugin ships its Guide in `wiki/`: **Agents Map** in the Wiki's Plugins group, with
+pages on reading the map, the agent and Section panels, who sees what, and setup and
+troubleshooting. The map's **?** dialog links to it.
+
+## Installing and checking
+
+Install it from **Admin Center › Marketplace** on a Second Brain OS host with Plugin API
+14.8 or later in 14.x (`framework_api` 14.8.0). It needs no other plugin.
+
+From the framework repository, `src/backend/scripts/check_plugin.py <this repo>` runs every
+gate: manifest, imports, Help and the Guide, these tests, and a real build of the screens.
