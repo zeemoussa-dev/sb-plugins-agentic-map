@@ -5,6 +5,15 @@ separate repository and is never copied in here.
 
 ## [Unreleased]
 
+## 2.1.0 — 2026-11-10
+
+Built for Plugin API 14.8 (`framework_api` 14.8.0), which requires a Guide and Help.
+
+- docs: the Guide, `wiki/`, five pages in the Wiki's Plugins group: what the map is for, reading and moving around it, the agent and Section panels, who sees what, and setup and troubleshooting.
+- feat(ui): the map's **?** dialog links to the Guide (the canvas has no title row, so no ⓘ), and its text says what the panel holds now.
+- feat(ui): the Help entry covers the Section panel, creating, and who sees what.
+- test: the framework's own Help and Guide rule run against this repository, and the Guide's links checked.
+
 ## 2.0.0 — 2026-11-08
 
 Rebuilt for Plugin API 14 (`framework_api` 14.0.0). A 13.x host refuses it, and a 14 host refused 1.0.0.

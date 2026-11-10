@@ -32,3 +32,11 @@ there.
 - **[2026-11-08] Audience and vault grants are read only by someone with
   `manage_agents`.** Those routes are under `/admin`. A vault the viewer is not a
   member of is counted, never named.
+
+- **[2026-11-10] The Guide is required (14.8).** `wiki/*.md`, each with `title`, `summary`,
+  `order` and `screens: [/agentic-map]`, and a `help` entry for every `nav` screen. A
+  change to what a screen does changes its Guide page in the same release. The map has no
+  `PageHeader`, so its ⓘ is missing; the **?** dialog links to the Guide instead.
+
+- **[2026-11-10] Check with `check_plugin.py`.** `publish_plugin.py` is gone; a version is
+  published by tagging this repository.
